@@ -1,0 +1,71 @@
+# ==============================================================================
+# ENTERPRISE AGENTIC RAG - REQUIREMENTS (Local, No GCP)
+# ==============================================================================
+
+# --- CORE API & WEB FRAMEWORK ---
+fastapi                     # High-performance web framework for the API
+uvicorn[standard]           # ASGI server to run the FastAPI app
+python-dotenv               # For loading configuration from .env files
+requests                    # HTTP library for internal/external API calls
+streamlit                   # Frontend dashboard for the chat interface
+numpy                       # Numerical processing
+pytz                        # Timezone handling for logs
+nest-asyncio                # Support for nested async loops in notebooks/streamlit
+
+# --- JINA API EMBEDDINGS + LOCAL FALLBACK ---
+sentence-transformers       # Local fallback embeddings (mxbai-embed-large-v1)
+torch                        # Required by sentence-transformers
+
+# --- VECTOR DB & RETRIEVAL ---
+qdrant-client               # Vector Database for semantic search
+
+# --- LANGCHAIN & AGENTIC ORCHESTRATION ---
+langchain                   # Core LLM orchestration
+langgraph                   # State-machine logic for cyclic agent flows
+langchain-google-vertexai   # Required shim for NeMo Guardrails internal import (no GCP credentials needed)
+langchain-google-genai>=4.4.0
+langchain-community         # Community-contributed tools and loaders
+langchain-openai            # OpenAI-compatible layer (used by Portkey gateway + guardrails)
+pydantic>=2.0.0             # Data validation and settings management
+pydantic-settings           # Pydantic BaseSettings with dotenv support
+
+# --- DATA INGESTION & DOCUMENT PARSING ---
+unstructured                # Base library for DOCX/PPTX partitioning
+python-pptx                 # Parser for PowerPoint files
+python-docx                 # Parser for Word documents
+pypdf                       # Local PDF text extraction (replaces Document AI)
+beautifulsoup4              # High-speed HTML text extraction
+pdfplumber                  # Fallback PDF parser for scanned/complex layouts
+
+# --- OBSERVABILITY & DISTRIBUTED TRACING ---
+langsmith                   # Specialized tracing for LangChain/LangGraph
+logfire[fastapi,requests]   # Pydantic Logfire — FastAPI + requests instrumentation
+loguru                      # Enhanced logging for Python
+
+# --- GUARDRAILS ---
+nemoguardrails              # NVIDIA NeMo Guardrails for input/output safety rails
+langchain-nvidia-ai-endpoints # LangChain integration with NVIDIA AI Endpoints
+
+# --- LLM GATEWAY ---
+portkey-ai                  # Portkey Gateway for unified LLM routing, fallbacks & observability
+
+# --- PRODUCTION PERSISTENCE & RELIABILITY ---
+langgraph-checkpoint-postgres  # Postgres-backed LangGraph checkpointer
+psycopg-pool                   # Connection pool for PostgresSaver
+psycopg-binary                 # PostgreSQL driver
+tenacity                       # Retry-with-backoff for external calls
+slowapi                        # Redis-backed API rate limiting (Limiter class)
+redis                          # Redis client for rate limiting
+prometheus-client              # Prometheus metrics exposition
+prometheus-fastapi-instrumentator  # Automatic FastAPI request metrics
+
+# --- DEV / CI ---
+ruff                           # Fast Python linter and formatter
+
+# --- EVALUATION (EVALS) ---
+ragas                       # RAG-specific evaluation metrics (Faithfulness, Relevancy, Recall)
+deepeval                    # Pytest-compatible test runner wrapping RAGAS & safety metrics
+langfuse                    # Live production monitoring, tracing & user feedback collection
+
+# --- EMBEDDINGS (SENTENCE TRANSFORMERS) ---
+sentence-transformers       # Local fallback embeddings (mxbai-embed-large-v1)

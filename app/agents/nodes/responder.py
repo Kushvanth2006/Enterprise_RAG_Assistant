@@ -1,0 +1,111 @@
+import logfire
+from tenacity import (
+    before_sleep_log,
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+)
+
+from app.agents.state import AgentState
+from app.gateway import get_langchain_llm
+
+llm = get_langchain_llm(feature="responder")
+
+
+def generate_node(state: AgentState):
+    """
+    Synthesizes a response using documentation context and conversation history.
+    Uses the Gemini-backed LLM gateway.
+    """
+    query = state["current_query"]
+
+    history_str = ""
+    for msg in state["messages"][:-1]:
+        role = "User" if msg["role"] == "user" else "Assistant"
+        history_str += f"{role}: {msg['content']}\n"
+
+    user_msg = state["messages"][-1]["content"] if state["messages"] else ""
+
+    if query == "CONVERSATIONAL":
+        logfire.info("Generating conversational response using memory.")
+
+        prompt = f"""
+        You are a friendly and helpful Enterprise AI Assistant.
+        Answer the user's latest message using the CONVERSATION HISTORY below.
+
+        CONVERSATION HISTORY:
+        {history_str}
+
+        LATEST MESSAGE:
+        "{user_msg}"
+        """
+
+    else:
+        # Do not let the LLM answer technical questions without
+        # relevant enterprise knowledge-base context.
+        if not state["documents"]:
+            logfire.info("No relevant technical context found. Skipping LLM synthesis.")
+
+            content = "I couldn't find relevant information in the enterprise knowledge base to answer that question."
+
+            return {
+                "final_answer": content,
+                "status": "No relevant context found.",
+                "plan": state["plan"],
+                "messages": [{"role": "assistant", "content": content}],
+            }
+
+        logfire.info("Generating technical RAG response.")
+
+        max_context_chars = 25000
+        full_context = ""
+
+        for doc in state["documents"]:
+            if len(full_context) + len(doc) < max_context_chars:
+                full_context += doc + "\n\n"
+            else:
+                logfire.warning("Context truncated to fit LLM context limits.")
+                break
+
+        prompt = f"""
+        You are a Senior Technical Architect.
+        Answer the question using the TECHNICAL CONTEXT provided.
+
+        TECHNICAL CONTEXT:
+        {full_context}
+
+        CONVERSATION HISTORY:
+        {history_str}
+
+        USER QUESTION:
+        "{user_msg}"
+        """
+
+    with logfire.span("LLM Synthesis"):
+        try:
+            response = _generate_response(prompt)
+            content = response.content
+
+            logfire.info("Response synthesised via Gemini.")
+
+            return {
+                "final_answer": content,
+                "status": "Response generated.",
+                "plan": state["plan"],
+                "messages": [{"role": "assistant", "content": content}],
+            }
+
+        except Exception as e:
+            logfire.error(f"LLM Generation failed after retries: {e}")
+            raise
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=5),
+    reraise=True,
+    before_sleep=before_sleep_log(logfire, "warning"),
+)
+def _generate_response(prompt: str):
+    """Call the Gemini LLM gateway with retry logic for transient failures."""
+    return llm.invoke(prompt)
